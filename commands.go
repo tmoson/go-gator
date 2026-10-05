@@ -92,6 +92,24 @@ func handlerReset(s *State, cmd Command) error {
 	return err
 }
 
+func handlerAgg(s *State, cmd Command) error {
+	rssFeed, err := fetchFeed(context.Background(), "https://www.wagslane.dev/index.xml")
+	if err != nil {
+		return err
+	}
+	// fmt.Printf("Feed: %s\n", rssFeed.Channel.Link)
+	// fmt.Printf("Title: %s\n", rssFeed.Channel.Title)
+	// fmt.Printf("Description: %s\n", rssFeed.Channel.Description)
+	// for i := 0; i < len(rssFeed.Channel.Item); i++ {
+	// 	rssItem := rssFeed.Channel.Item[i]
+	// 	fmt.Printf("\nTitle: %s\n", rssItem.Title)
+	// 	fmt.Printf("%s\nDescription: %s\n", rssItem.PubDate, rssItem.Description)
+	// 	fmt.Printf("Link: %s\n", rssItem.Link)
+	// }
+	fmt.Printf("%v", rssFeed)
+	return nil
+}
+
 type Commands struct {
 	commands map[string]func(*State, Command) error
 }
