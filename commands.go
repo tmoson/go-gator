@@ -92,6 +92,63 @@ func handlerReset(s *State, cmd Command) error {
 	return err
 }
 
+func handlerAddFeed(s *State, cmd Command) error {
+	if len(cmd.args) < 2 {
+		return errors.New("Need a name and url to register feed.")
+	}
+	now := sql.NullTime{
+		Time:  time.Now(),
+		Valid: true,
+	}
+	user_id, err := s.db.GetUser(context.Background(), s.conf.CurrentUserName)
+	if err != nil {
+		return err
+	}
+	feed, err := s.db.CreateFeed(context.Background(), database.CreateFeedParams{
+		ID:        uuid.New(),
+		CreatedAt: now,
+		UpdatedAt: now,
+		Name:      cmd.args[0],
+		Url:       cmd.args[1],
+		UserID:    user_id.ID,
+	})
+	if err != nil {
+		return err
+	}
+	s.conf.SetUser(cmd.args[0])
+	fmt.Printf(
+		"%s was created, id: %v, created_at: %v, updated_at: %v, url: %s\n",
+		feed.Name,
+		feed.ID,
+		feed.CreatedAt,
+		feed.UpdatedAt,
+		feed.Url,
+	)
+	return nil
+}
+
+func handlerGetFeeds(s *State, cmd Command) error {
+	if !cmd.hasNoArgs() {
+		return errors.New("feeds does not take arguments")
+	}
+	feeds, err := s.db.GetFeeds(context.Background())
+	if err != nil {
+		return err
+	}
+	for i := range feeds {
+		feed := feeds[i]
+		fmt.Printf(
+			"Feed: %s\nURL: %s\nCreated By %s At: %v, Updated: %v\n",
+			feed.Name,
+			feed.Url,
+			feed.UserName.String,
+			feed.CreatedAt,
+			feed.UpdatedAt,
+		)
+	}
+	return nil
+}
+
 func handlerAgg(s *State, cmd Command) error {
 	rssFeed, err := fetchFeed(context.Background(), "https://www.wagslane.dev/index.xml")
 	if err != nil {

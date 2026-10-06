@@ -30,6 +30,8 @@ func main() {
 	commands.register("reset", handlerReset)
 	commands.register("users", handlerUsers)
 	commands.register("agg", handlerAgg)
+	commands.register("addfeed", handlerAddFeed)
+	commands.register("feeds", handlerGetFeeds)
 	args := os.Args
 	if len(args) < 2 {
 		fmt.Printf("Too few arguments passed, expected 2, but got %d\n", len(args))
