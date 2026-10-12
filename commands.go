@@ -211,22 +211,47 @@ func handlerUnfollow(s *State, cmd Command, user database.User) error {
 	})
 }
 
-func handlerAgg(s *State, cmd Command) error {
-	rssFeed, err := fetchFeed(context.Background(), "https://www.wagslane.dev/index.xml")
+func scrapeFeeds(s *State) error {
+	nextFeed, err := s.db.GetNextFeedToFetch(context.Background())
 	if err != nil {
 		return err
 	}
-	// fmt.Printf("Feed: %s\n", rssFeed.Channel.Link)
-	// fmt.Printf("Title: %s\n", rssFeed.Channel.Title)
-	// fmt.Printf("Description: %s\n", rssFeed.Channel.Description)
-	// for i := 0; i < len(rssFeed.Channel.Item); i++ {
-	// 	rssItem := rssFeed.Channel.Item[i]
-	// 	fmt.Printf("\nTitle: %s\n", rssItem.Title)
-	// 	fmt.Printf("%s\nDescription: %s\n", rssItem.PubDate, rssItem.Description)
-	// 	fmt.Printf("Link: %s\n", rssItem.Link)
-	// }
-	fmt.Printf("%v", rssFeed)
+	err = s.db.MarkFeedFetched(context.Background(), nextFeed.ID)
+	if err != nil {
+		return err
+	}
+	rssFeed, err := fetchFeed(context.Background(), nextFeed.Url)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Feed: %s\n", rssFeed.Channel.Link)
+	fmt.Printf("Title: %s\n", rssFeed.Channel.Title)
+	fmt.Printf("Description: %s\n", rssFeed.Channel.Description)
+	for i := 0; i < len(rssFeed.Channel.Item); i++ {
+		rssItem := rssFeed.Channel.Item[i]
+		fmt.Printf("\nTitle: %s\n", rssItem.Title)
+		fmt.Printf("%s\nDescription: %s\n", rssItem.PubDate, rssItem.Description)
+		fmt.Printf("Link: %s\n", rssItem.Link)
+	}
 	return nil
+}
+
+func handlerAgg(s *State, cmd Command) error {
+	if cmd.hasNoArgs() {
+		return errors.New("Need duration to run requests in, e.g. 1s, 1m, 1h")
+	}
+	interval, err := time.ParseDuration(cmd.args[0])
+	if err != nil {
+		return err
+	}
+	ticker := time.NewTicker(interval)
+	fmt.Printf("Fetching feeds every %s", cmd.args[0])
+	for ; ; <-ticker.C {
+		err := scrapeFeeds(s)
+		if err != nil {
+			return err
+		}
+	}
 }
 
 type Commands struct {
