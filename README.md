@@ -39,4 +39,4 @@ Once installed, you just need to use `go-gator` to run one of the following comm
 | browse    | number of posts (optional)                   | the last n posts from current user's feeds, defaulting to 2         |
 | reset     | none                                         | none                                                                |
 
-Feeds cannot be created without users, and posts cannot be seen without feeds, so you will need to create user(s), have users create feeds, and then run the `agg` command on its own in a terminal where it won't interfere with users. The `agg` command runs continually until it is stopped, and if you're not careful can DDOS your feeds.
+Feeds cannot be created without users, and posts cannot be seen without feeds, so you will need to create user(s), have users create feeds, and then run the `agg` command on its own in a terminal where it won't interfere with users. The `agg` command runs continually until it is stopped, and if you're not careful can DOS your feeds.
