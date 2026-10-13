@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -211,6 +212,24 @@ func handlerUnfollow(s *State, cmd Command, user database.User) error {
 	})
 }
 
+func parseDate(s string) (time.Time, error) {
+	dateLayouts := []string{
+		time.RFC1123Z,
+		time.RFC1123,
+		time.RFC822Z,
+		time.RFC822,
+		"2006-01-02T15:04:05Z07:00",
+		"Mon, 12 Oct 2026 10:27:00 +0000",
+	}
+	for _, layout := range dateLayouts {
+		// copying this from example, want to simplify nil err checks
+		if t, err := time.Parse(layout, s); err == nil {
+			return t, nil
+		}
+	}
+	return time.Time{}, errors.New(fmt.Sprintf("Date %s not in any standard format", s))
+}
+
 func scrapeFeeds(s *State) error {
 	nextFeed, err := s.db.GetNextFeedToFetch(context.Background())
 	if err != nil {
@@ -229,9 +248,24 @@ func scrapeFeeds(s *State) error {
 	fmt.Printf("Description: %s\n", rssFeed.Channel.Description)
 	for i := 0; i < len(rssFeed.Channel.Item); i++ {
 		rssItem := rssFeed.Channel.Item[i]
-		fmt.Printf("\nTitle: %s\n", rssItem.Title)
-		fmt.Printf("%s\nDescription: %s\n", rssItem.PubDate, rssItem.Description)
-		fmt.Printf("Link: %s\n", rssItem.Link)
+		pubDate, err := parseDate(rssItem.PubDate)
+		if err != nil {
+			return err
+		}
+		err = s.db.CreatePost(context.Background(), database.CreatePostParams{
+			ID: uuid.New(),
+			Title: sql.NullString{
+				String: rssItem.Title,
+				Valid:  true,
+			},
+			Url: rssItem.Link,
+			Description: sql.NullString{
+				String: rssItem.Description,
+				Valid:  true,
+			},
+			PublishedAt: pubDate,
+			FeedID:      nextFeed.ID,
+		})
 	}
 	return nil
 }
@@ -245,13 +279,35 @@ func handlerAgg(s *State, cmd Command) error {
 		return err
 	}
 	ticker := time.NewTicker(interval)
-	fmt.Printf("Fetching feeds every %s", cmd.args[0])
+	fmt.Printf("Fetching feeds every %s\n", cmd.args[0])
 	for ; ; <-ticker.C {
 		err := scrapeFeeds(s)
 		if err != nil {
 			return err
 		}
 	}
+}
+
+func handlerBrowse(s *State, cmd Command, user database.User) error {
+	limit := 2
+	var err error
+	if !cmd.hasNoArgs() {
+		limit, err = strconv.Atoi(cmd.args[0])
+		if err != nil {
+			return err
+		}
+	}
+	posts, err := s.db.GetPostsForUser(context.Background(), database.GetPostsForUserParams{
+		UserID: user.ID,
+		Limit:  int32(limit),
+	})
+	if err != nil {
+		return err
+	}
+	for _, post := range posts {
+		fmt.Printf("%s\nPublished: %v\n\n%s\n\n", post.Title.String, post.PublishedAt, post.Description.String)
+	}
+	return nil
 }
 
 type Commands struct {
